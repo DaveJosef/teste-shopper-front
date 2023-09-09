@@ -13,12 +13,12 @@ const getProductsBeingUpdated = async (codes: number[]) => {
     for (const code of codes) {
         let product: Product | any = {};
 
-        await axios.get(listUrl, { params: { code: code + '' } })
+        await axios.get(listUrl+'/'+code)
         .then(res => {
             console.log(res)
             product = res.data
         })
-        .catch(err => console.log(err));
+        .catch(err => {throw err});
 
         products.push(product);
     }
@@ -27,7 +27,7 @@ const getProductsBeingUpdated = async (codes: number[]) => {
 
 const CSVReader = () => {
   const [data, setData] = useState<string[][]>([]);
-  const [error, setError] = useState<ValidationError | any>({});
+  const [error, setError] = useState<ValidationError | undefined>(undefined);
 
   const [ valid, setValid ] = useState<boolean>(false);
   //const [ csvPreview, setCsvPreview ] = useState<string>('');
@@ -61,7 +61,8 @@ const CSVReader = () => {
           }
         }
       ).then((res) => {
-        console.log({ res });
+        
+        console.log({ res: JSON.parse(res.data) });
       })
       .catch((err: any) => {
         console.log({err});
@@ -75,13 +76,6 @@ const CSVReader = () => {
       formData.append('file', csv);
 
       console.log({ csv });
-      let productsBeingUpdated: Product[] | any = [];
-      const codes: number[] = rows.map((row:  any) => {
-        return Number(row[0]);
-      });
-
-      productsBeingUpdated = await getProductsBeingUpdated(codes);
-      console.log({ productsBeingUpdated})
 /* 
       axios.get(
         listUrl,
@@ -98,7 +92,8 @@ const CSVReader = () => {
         console.log({err});
       });
  */
-      axios.post(
+      let isError = false;
+      await axios.post(
         validateUrl,
         formData,
         {
@@ -111,13 +106,37 @@ const CSVReader = () => {
 
         if (res.status === 200) {
           setValid(true);
+          setError(undefined);
         }
       })
       .catch((err: any) => {
         console.log({err});
+        if (!err.response) {
+          setError(new ValidationError('Erro de Conexão', -1, -1));
+          setValid(false);
+          return;
+        }
         setError(err.response.data.err);
         setValid(false);
+        isError = true;
       });
+      
+      if (isError) return;
+
+      let productsBeingUpdated: Product[] | any = [];
+      const codes: number[] = rows.splice(0, rows.length-1).map((row:  any) => {
+        return Number(row[0]);
+      });
+      console.log({ codes});
+
+      try {
+        productsBeingUpdated = await getProductsBeingUpdated(codes);
+      } catch (err) {
+        setError(new ValidationError('Erro de Conexão', -1, -1));
+        setValid(false);
+        return;
+      }
+      console.log({ productsBeingUpdated});
     }
   }
 
@@ -132,16 +151,16 @@ const CSVReader = () => {
         <thead>
           <tr>
             {headers?.map((header, i) => (
-              <th key={i}>{header}</th>
+              <th className={ error !== undefined && error.line === 0 && error.column === i ? 'header-error' : '' } key={i}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows?.map((rowData, i) => {
             return (
-              <tr key={i}>
-                {rowData?.map((data, i) => {
-                  return <td key={i}>{data}</td>;
+              <tr className={ error !== undefined && error.line === i + 1 && error.column === -1 ? 'row-error' : '' } key={i}>
+                {rowData?.map((data, j) => {
+                  return <td className={ error !== undefined && error.line === i + 1 && error.column === j ? 'cell-error' : '' } key={j}>{data}</td>;
                 })}
               </tr>
             );
@@ -155,18 +174,15 @@ const CSVReader = () => {
             name='validate-btn'
             value='validate'
         />
-        <label htmlFor='validate-btn'>Validate file</label>
 
-        {/* <input
-            name='submit-btn'
-            type="file"
-            onChange={handleCsvPreview}
-        />
-        <label htmlFor='submit-btn'>Upload file</label> */}
         { valid && <input type="submit" onClick={handleSubmitFile} onChange={() => {}} value="Atualizar"/> }
-        <p>{ 'Error: '+JSON.stringify(error) }</p>
-        <p>{ `Linha: ${error.line}` }</p>
-        <p>{ `Column: ${error.column}` }</p>
+        <div className="error-box">
+          { error !== undefined && <>
+            <p>{ 'Error: '+error.info }</p>
+            <p>{ `Linha: ${error.line}` }</p>
+            <p>{ `Column: ${error.column}` }</p>
+            </> }
+        </div>
     </div>
   );
 };
