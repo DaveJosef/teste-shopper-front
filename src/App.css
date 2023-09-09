@@ -1,0 +1,37 @@
+:root {
+  --white: rgb(255, 255, 255);
+  --blue: rgb(12, 195, 223);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+body, #root {
+  background-color: white;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  align-content: space-between;
+  top: 500px;
+  background-color: var(--blue);
+  width: 800px;
+  height: 720px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+input {
+  background-color: var(--blue);
+  margin: 20px;
+  border: 5px solid;
+}
